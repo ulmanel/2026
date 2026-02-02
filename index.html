@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yalova Belediyesi - Çöp Toplama Performans Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
+        .date-badge {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 20px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50px;
+            font-size: 0.9rem;
+            color: #60a5fa;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--color) 0%, transparent 100%);
+        }
+
+        .stat-card.blue { --color: #3b82f6; }
+        .stat-card.green { --color: #10b981; }
+        .stat-card.purple { --color: #8b5cf6; }
+        .stat-card.orange { --color: #f59e0b; }
+        .stat-card.red { --color: #ef4444; }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-change {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-title i {
+            color: #3b82f6;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .performance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .performance-table th,
+        .performance-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .performance-table th {
+            background: rgba(15, 23, 42, 0.5);
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        .performance-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-gold {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+
+        .badge-silver {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        .badge-bronze {
+            background: rgba(251, 146, 60, 0.2);
+            color: #fb923c;
+            border: 1px solid rgba(251, 146, 60, 0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+
+        .shift-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .shift-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shift-card.day {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+            border-color: rgba(251, 191, 36, 0.2);
+        }
+
+        .shift-card.night {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%);
+            border-color: rgba(139, 92, 246, 0.2);
+        }
+
+        .shift-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .shift-card.day .shift-icon { color: #fbbf24; }
+        .shift-card.night .shift-icon { color: #a78bfa; }
+
+        .shift-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .shift-card.day .shift-title { color: #fbbf24; }
+        .shift-card.night .shift-title { color: #a78bfa; }
+
+        .shift-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .shift-stat {
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.3);
+            border-radius: 12px;
+        }
+
+        .shift-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .shift-stat-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .shift-comparison {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-truck-moving"></i> Yalova Belediyesi</h1>
+            <div class="subtitle">Çöp Toplama ve Nakliye Performans Dashboard</div>
+            <div class="date-badge"><i class="fas fa-calendar-alt"></i> Ocak 2026</div>
+        </header>
+
+        <!-- Özet İstatistikler -->
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                <div class="stat-value">2,239</div>
+                <div class="stat-label">Toplam Çalışma Saati</div>
+                <div class="stat-change"><i class="fas fa-arrow-up"></i> Ocak Ayı</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon"><i class="fas fa-weight-hanging"></i></div>
+                <div class="stat-value">3,871</div>
+                <div class="stat-label">Toplam Tonaj</div>
+                <div class="stat-change"><i class="fas fa-trash"></i> Ton Çöp</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon"><i class="fas fa-road"></i></div>
+                <div class="stat-value">31,519</div>
+                <div class="stat-label">Toplam KM</div>
+                <div class="stat-change"><i class="fas fa-route"></i> Kat Edilen</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+                <div class="stat-value">26</div>
+                <div class="stat-label">Aktif Personel</div>
+                <div class="stat-change"><i class="fas fa-user-check"></i> Sürücü</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-icon"><i class="fas fa-truck"></i></div>
+                <div class="stat-value">19</div>
+                <div class="stat-label">Aktif Araç</div>
+                <div class="stat-change"><i class="fas fa-car"></i> Kamyon</div>
+            </div>
+        </div>
+
+        <!-- Vardiya Karşılaştırması -->
+        <div class="shift-comparison">
+            <div class="shift-card day">
+                <div class="shift-icon"><i class="fas fa-sun"></i></div>
+                <div class="shift-title">Gündüz Vardiyası</div>
+                <div class="shift-stats">
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">1,670</div>
+                        <div class="shift-stat-label">Çalışma Saati</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">338</div>
+                        <div class="shift-stat-label">İş Sayısı</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">2,626</div>
+                        <div class="shift-stat-label">Tonaj</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">23,334</div>
+                        <div class="shift-stat-label">Kilometre</div>
+                    </div>
+                </div>
+            </div>
+            <div class="shift-card night">
+                <div class="shift-icon"><i class="fas fa-moon"></i></div>
+                <div class="shift-title">Gece Vardiyası</div>
+                <div class="shift-stats">
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">569</div>
+                        <div class="shift-stat-label">Çalışma Saati</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">180</div>
+                        <div class="shift-stat-label">İş Sayısı</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">1,245</div>
+                        <div class="shift-stat-label">Tonaj</div>
+                    </div>
+                    <div class="shift-stat">
+                        <div class="shift-stat-value">8,186</div>
+                        <div class="shift-stat-label">Kilometre</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tablar -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab('personel')">Personel Performansı</button>
+            <button class="tab-btn" onclick="openTab('mintika')">Mıntıka Analizi</button>
+            <button class="tab-btn" onclick="openTab('arac')">Araç Performansı</button>
+            <button class="tab-btn" onclick="openTab('trend')">Günlük Trend</button>
+        </div>
+
+        <!-- Personel Tab -->
+        <div id="personel" class="tab-content active">
+            <div class="charts-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title"><i class="fas fa-chart-bar"></i> En İyi 15 Personel Performansı</div>
+                    <div class="chart-wrapper">
+                        <canvas id="personelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title"><i class="fas fa-table"></i> Personel Detay Tablosu</div>
+                <table class="performance-table">
+                    <thead>
+                        <tr>
+                            <th>Sıra</th>
+                            <th>Personel</th>
+                            <th>Çalışma Saati</th>
+                            <th>Tonaj</th>
+                            <th>KM</th>
+                            <th>Mola (Dk)</th>
+                            <th>Performans</th>
+                        </tr>
+                    </thead>
+                    <tbody id="personelTable">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Mıntıka Tab -->
+        <div id="mintika" class="tab-content">
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title"><i class="fas fa-chart-pie"></i> Mıntıka Dağılımı (Çalışma Saati)</div>
+                    <div class="chart-wrapper">
+                        <canvas id="mintikaPieChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title"><i class="fas fa-chart-bar"></i> Mıntıka Karşılaştırması</div>
+                    <div class="chart-wrapper">
+                        <canvas id="mintikaBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Araç Tab -->
+        <div id="arac" class="tab-content">
+            <div class="charts-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title"><i class="fas fa-truck"></i> Araç Performans Sıralaması</div>
+                    <div class="chart-wrapper">
+                        <canvas id="aracChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Tab -->
+        <div id="trend" class="tab-content">
+            <div class="charts-grid">
+                <div class="chart-container full-width">
+                    <div class="chart-title"><i class="fas fa-chart-line"></i> Günlük Çalışma Trendi</div>
+                    <div class="chart-wrapper">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Veriler
+        const personelData = [{"S\u00dcR\u00dcC\u00dc": "\u0130SMA\u0130L AK\u00c7AL", "Toplam_Saat": 165.77, "Toplam_Mola_Dk": 1040.0, "Ort_Mola_Dk": 41.6, "Toplam_KM": 2436.6, "Toplam_Tonaj": 230880.0, "\u0130\u015f_Say\u0131s\u0131": 31, "Performans_Skoru": 93.98375029369244}, {"S\u00dcR\u00dcC\u00dc": "CAN TOKS\u00d6Z", "Toplam_Saat": 149.65, "Toplam_Mola_Dk": 528.0, "Ort_Mola_Dk": 20.31, "Toplam_KM": 1719.4, "Toplam_Tonaj": 246680.0, "\u0130\u015f_Say\u0131s\u0131": 27, "Performans_Skoru": 86.67039681215654}, {"S\u00dcR\u00dcC\u00dc": "MESUT SUBA\u015eI", "Toplam_Saat": 117.23, "Toplam_Mola_Dk": 739.0, "Ort_Mola_Dk": 32.13, "Toplam_KM": 1872.0, "Toplam_Tonaj": 265940.0, "\u0130\u015f_Say\u0131s\u0131": 24, "Performans_Skoru": 83.15681909669689}, {"S\u00dcR\u00dcC\u00dc": "SERKAN ALKAN", "Toplam_Saat": 135.02, "Toplam_Mola_Dk": 390.0, "Ort_Mola_Dk": 15.0, "Toplam_KM": 1991.2, "Toplam_Tonaj": 222340.0, "\u0130\u015f_Say\u0131s\u0131": 28, "Performans_Skoru": 81.74355563992584}, {"S\u00dcR\u00dcC\u00dc": "EMRE G\u00dcRKAN", "Toplam_Saat": 115.38, "Toplam_Mola_Dk": 365.0, "Ort_Mola_Dk": 14.6, "Toplam_KM": 1792.0, "Toplam_Tonaj": 244928.0, "\u0130\u015f_Say\u0131s\u0131": 25, "Performans_Skoru": 78.87651175750668}, {"S\u00dcR\u00dcC\u00dc": "EMRAH \u00c7ET\u0130N", "Toplam_Saat": 120.62, "Toplam_Mola_Dk": 339.0, "Ort_Mola_Dk": 12.11, "Toplam_KM": 1804.9, "Toplam_Tonaj": 232320.0, "\u0130\u015f_Say\u0131s\u0131": 28, "Performans_Skoru": 78.3134465630149}, {"S\u00dcR\u00dcC\u00dc": "EM\u0130R \u0130NATLI", "Toplam_Saat": 125.53, "Toplam_Mola_Dk": 948.0, "Ort_Mola_Dk": 37.92, "Toplam_KM": 1564.3, "Toplam_Tonaj": 229660.0, "\u0130\u015f_Say\u0131s\u0131": 28, "Performans_Skoru": 77.09933975354744}, {"S\u00dcR\u00dcC\u00dc": "FERHAT KOZAN", "Toplam_Saat": 168.73, "Toplam_Mola_Dk": 2343.0, "Ort_Mola_Dk": 83.68, "Toplam_KM": 2010.0, "Toplam_Tonaj": 136320.0, "\u0130\u015f_Say\u0131s\u0131": 28, "Performans_Skoru": 76.85007441280216}, {"S\u00dcR\u00dcC\u00dc": "AL\u0130 BALCI", "Toplam_Saat": 120.57, "Toplam_Mola_Dk": 456.0, "Ort_Mola_Dk": 18.24, "Toplam_KM": 1563.2, "Toplam_Tonaj": 232800.0, "\u0130\u015f_Say\u0131s\u0131": 26, "Performans_Skoru": 76.39044164340778}, {"S\u00dcR\u00dcC\u00dc": "BEK\u0130R BAKIRCI", "Toplam_Saat": 123.78, "Toplam_Mola_Dk": 737.0, "Ort_Mola_Dk": 29.48, "Toplam_KM": 1753.9, "Toplam_Tonaj": 200860.0, "\u0130\u015f_Say\u0131s\u0131": 26, "Performans_Skoru": 73.87512196229713}, {"S\u00dcR\u00dcC\u00dc": "\u0130LHAN TOPRAK", "Toplam_Saat": 123.98, "Toplam_Mola_Dk": 303.0, "Ort_Mola_Dk": 12.63, "Toplam_KM": 1765.8, "Toplam_Tonaj": 188820.0, "\u0130\u015f_Say\u0131s\u0131": 24, "Performans_Skoru": 72.19514007762935}, {"S\u00dcR\u00dcC\u00dc": "SERHAT YILMAZ", "Toplam_Saat": 115.43, "Toplam_Mola_Dk": 491.0, "Ort_Mola_Dk": 19.64, "Toplam_KM": 1901.0, "Toplam_Tonaj": 146800.0, "\u0130\u015f_Say\u0131s\u0131": 27, "Performans_Skoru": 64.90841434750092}, {"S\u00dcR\u00dcC\u00dc": "RA\u015e\u0130T KORKMAZLAR", "Toplam_Saat": 109.77, "Toplam_Mola_Dk": 504.0, "Ort_Mola_Dk": 21.0, "Toplam_KM": 1458.4, "Toplam_Tonaj": 139340.0, "\u0130\u015f_Say\u0131s\u0131": 24, "Performans_Skoru": 58.80287751947322}, {"S\u00dcR\u00dcC\u00dc": "RAMAZAN TEK\u0130N", "Toplam_Saat": 91.5, "Toplam_Mola_Dk": 480.0, "Ort_Mola_Dk": 32.0, "Toplam_KM": 1022.0, "Toplam_Tonaj": 132020.0, "\u0130\u015f_Say\u0131s\u0131": 15, "Performans_Skoru": 49.78006170888795}, {"S\u00dcR\u00dcC\u00dc": "MUSTAFA CAN TATAN", "Toplam_Saat": 66.17, "Toplam_Mola_Dk": 921.0, "Ort_Mola_Dk": 65.79, "Toplam_KM": 858.2, "Toplam_Tonaj": 163400.0, "\u0130\u015f_Say\u0131s\u0131": 20, "Performans_Skoru": 47.18741303855841}];
+        const mintikaData = [{"MINTIKA": "MERKEZ", "Toplam_Saat": 170.18, "Toplam_Tonaj": 148040.0, "Toplam_KM": 2063.8, "\u0130\u015f_Say\u0131s\u0131": 30}, {"MINTIKA": "BOMLU 1", "Toplam_Saat": 160.65, "Toplam_Tonaj": 242260.0, "Toplam_KM": 2190.3, "\u0130\u015f_Say\u0131s\u0131": 29}, {"MINTIKA": "BAYRAKTEPE", "Toplam_Saat": 154.8, "Toplam_Tonaj": 224740.0, "Toplam_KM": 1860.0, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "K\u00d6YLER", "Toplam_Saat": 146.63, "Toplam_Tonaj": 204980.0, "Toplam_KM": 2066.1, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "ADNAN MENDERES", "Toplam_Saat": 140.48, "Toplam_Tonaj": 312320.0, "Toplam_KM": 2271.2, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "DERE", "Toplam_Saat": 137.42, "Toplam_Tonaj": 228720.0, "Toplam_KM": 1963.0, "\u0130\u015f_Say\u0131s\u0131": 29}, {"MINTIKA": "KKB", "Toplam_Saat": 134.43, "Toplam_Tonaj": 199860.0, "Toplam_KM": 1920.4, "\u0130\u015f_Say\u0131s\u0131": 26}, {"MINTIKA": "\u0130SMETPA\u015eA", "Toplam_Saat": 127.93, "Toplam_Tonaj": 249000.0, "Toplam_KM": 1668.7, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "\u0130SMETPA\u015eA ( ALT )", "Toplam_Saat": 127.57, "Toplam_Tonaj": 147140.0, "Toplam_KM": 1663.0, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "GOP", "Toplam_Saat": 123.02, "Toplam_Tonaj": 245118.0, "Toplam_KM": 1892.6, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "MKP", "Toplam_Saat": 121.67, "Toplam_Tonaj": 218800.0, "Toplam_KM": 1519.0, "\u0130\u015f_Say\u0131s\u0131": 28}, {"MINTIKA": "BOMLU 2", "Toplam_Saat": 121.17, "Toplam_Tonaj": 240100.0, "Toplam_KM": 1702.8, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "BAH\u00c7EL\u0130EVLER", "Toplam_Saat": 119.57, "Toplam_Tonaj": 159300.0, "Toplam_KM": 1965.9, "\u0130\u015f_Say\u0131s\u0131": 28}, {"MINTIKA": "BA\u011eLARBA\u015eI", "Toplam_Saat": 112.47, "Toplam_Tonaj": 205060.0, "Toplam_KM": 1667.8, "\u0130\u015f_Say\u0131s\u0131": 26}, {"MINTIKA": "BOMLU 3", "Toplam_Saat": 111.27, "Toplam_Tonaj": 189400.0, "Toplam_KM": 1372.1, "\u0130\u015f_Say\u0131s\u0131": 21}, {"MINTIKA": "MERKEZ - BAH\u00c7EL\u0130EVLER", "Toplam_Saat": 109.32, "Toplam_Tonaj": 144320.0, "Toplam_KM": 1687.9, "\u0130\u015f_Say\u0131s\u0131": 27}, {"MINTIKA": "SANAY\u0130", "Toplam_Saat": 18.5, "Toplam_Tonaj": 39640.0, "Toplam_KM": 339.5, "\u0130\u015f_Say\u0131s\u0131": 5}, {"MINTIKA": "SAMANLI", "Toplam_Saat": 16.33, "Toplam_Tonaj": 14330.0, "Toplam_KM": 258.9, "\u0130\u015f_Say\u0131s\u0131": 4}, {"MINTIKA": "GOP ARTELLER", "Toplam_Saat": 15.58, "Toplam_Tonaj": 34160.0, "Toplam_KM": 233.6, "\u0130\u015f_Say\u0131s\u0131": 3}, {"MINTIKA": "\u015e\u0130KAYET", "Toplam_Saat": 14.62, "Toplam_Tonaj": 29840.0, "Toplam_KM": 260.3, "\u0130\u015f_Say\u0131s\u0131": 5}, {"MINTIKA": "TOK\u0130 ARTELLER", "Toplam_Saat": 13.32, "Toplam_Tonaj": 28540.0, "Toplam_KM": 203.1, "\u0130\u015f_Say\u0131s\u0131": 3}, {"MINTIKA": "CADDELER", "Toplam_Saat": 11.85, "Toplam_Tonaj": 19840.0, "Toplam_KM": 220.9, "\u0130\u015f_Say\u0131s\u0131": 3}, {"MINTIKA": "MERKEZ ARTELLER", "Toplam_Saat": 11.77, "Toplam_Tonaj": 9600.0, "Toplam_KM": 159.8, "\u0130\u015f_Say\u0131s\u0131": 2}, {"MINTIKA": "\u015e\u0130KAYET PAZAR", "Toplam_Saat": 5.05, "Toplam_Tonaj": 7080.0, "Toplam_KM": 88.0, "\u0130\u015f_Say\u0131s\u0131": 1}, {"MINTIKA": "\u00dcN\u0130VERS\u0130TE - HASTANE - YURT", "Toplam_Saat": 3.0, "Toplam_Tonaj": 9880.0, "Toplam_KM": 94.8, "\u0130\u015f_Say\u0131s\u0131": 2}];
+        const aracData = [{"PLAKA": "77 AAU 174", "Toplam_Saat": 254.0, "Toplam_Tonaj": 467740.0, "Toplam_KM": 3596.8, "\u0130\u015f_Say\u0131s\u0131": 46}, {"PLAKA": "77 AAT 863", "Toplam_Saat": 237.65, "Toplam_Tonaj": 418210.0, "Toplam_KM": 3411.2, "\u0130\u015f_Say\u0131s\u0131": 51}, {"PLAKA": "77 AAT 875", "Toplam_Saat": 220.18, "Toplam_Tonaj": 379900.0, "Toplam_KM": 3050.5, "\u0130\u015f_Say\u0131s\u0131": 43}, {"PLAKA": "77 ABC 073", "Toplam_Saat": 205.57, "Toplam_Tonaj": 353600.0, "Toplam_KM": 2744.3, "\u0130\u015f_Say\u0131s\u0131": 40}, {"PLAKA": "77 AAS 835", "Toplam_Saat": 179.1, "Toplam_Tonaj": 145980.0, "Toplam_KM": 2163.6, "\u0130\u015f_Say\u0131s\u0131": 30}, {"PLAKA": "77 AAT 871", "Toplam_Saat": 174.77, "Toplam_Tonaj": 328508.0, "Toplam_KM": 2739.8, "\u0130\u015f_Say\u0131s\u0131": 38}, {"PLAKA": "77 ABC 068", "Toplam_Saat": 162.77, "Toplam_Tonaj": 226920.0, "Toplam_KM": 2341.8, "\u0130\u015f_Say\u0131s\u0131": 30}, {"PLAKA": "77 AAS 841", "Toplam_Saat": 153.15, "Toplam_Tonaj": 202660.0, "Toplam_KM": 2098.6, "\u0130\u015f_Say\u0131s\u0131": 33}, {"PLAKA": "77 AAT 873", "Toplam_Saat": 132.03, "Toplam_Tonaj": 203920.0, "Toplam_KM": 1755.6, "\u0130\u015f_Say\u0131s\u0131": 24}, {"PLAKA": "77 AAT 865", "Toplam_Saat": 120.08, "Toplam_Tonaj": 214620.0, "Toplam_KM": 1508.5, "\u0130\u015f_Say\u0131s\u0131": 29}, {"PLAKA": "77 AAS 840", "Toplam_Saat": 119.93, "Toplam_Tonaj": 156000.0, "Toplam_KM": 1852.6, "\u0130\u015f_Say\u0131s\u0131": 28}, {"PLAKA": "77 AAS 843", "Toplam_Saat": 103.2, "Toplam_Tonaj": 124560.0, "Toplam_KM": 1685.5, "\u0130\u015f_Say\u0131s\u0131": 23}, {"PLAKA": "77 AAT 869", "Toplam_Saat": 89.92, "Toplam_Tonaj": 141960.0, "Toplam_KM": 1236.8, "\u0130\u015f_Say\u0131s\u0131": 18}, {"PLAKA": "77 ABC 077", "Toplam_Saat": 80.75, "Toplam_Tonaj": 140860.0, "Toplam_KM": 1268.3, "\u0130\u015f_Say\u0131s\u0131": 18}, {"PLAKA": "77 AAT 861", "Toplam_Saat": 5.92, "Toplam_Tonaj": 10740.0, "Toplam_KM": 65.5, "\u0130\u015f_Say\u0131s\u0131": 1}, {"PLAKA": "16 NKV 85", "Toplam_Saat": 0.0, "Toplam_Tonaj": 139580.0, "Toplam_KM": 0.0, "\u0130\u015f_Say\u0131s\u0131": 17}, {"PLAKA": "16 NJV 07", "Toplam_Saat": 0.0, "Toplam_Tonaj": 77680.0, "Toplam_KM": 0.0, "\u0130\u015f_Say\u0131s\u0131": 21}, {"PLAKA": "10 DM 130", "Toplam_Saat": 0.0, "Toplam_Tonaj": 9460.0, "Toplam_KM": 0.0, "\u0130\u015f_Say\u0131s\u0131": 3}, {"PLAKA": "77 AAS 839", "Toplam_Saat": 0.0, "Toplam_Tonaj": 118960.0, "Toplam_KM": 0.0, "\u0130\u015f_Say\u0131s\u0131": 19}];
+        const dailyData = [{"GUN": 1, "\u00c7ALI\u015eMA_SAAT": 65.48, "TONAJ": 81120.0, "PLAKA": 17}, {"GUN": 2, "\u00c7ALI\u015eMA_SAAT": 88.92, "TONAJ": 141960.0, "PLAKA": 17}, {"GUN": 3, "\u00c7ALI\u015eMA_SAAT": 73.5, "TONAJ": 137680.0, "PLAKA": 18}, {"GUN": 5, "\u00c7ALI\u015eMA_SAAT": 65.78, "TONAJ": 125020.0, "PLAKA": 17}, {"GUN": 6, "\u00c7ALI\u015eMA_SAAT": 82.0, "TONAJ": 106560.0, "PLAKA": 18}, {"GUN": 7, "\u00c7ALI\u015eMA_SAAT": 81.63, "TONAJ": 167965.0, "PLAKA": 20}, {"GUN": 8, "\u00c7ALI\u015eMA_SAAT": 76.82, "TONAJ": 133980.0, "PLAKA": 19}, {"GUN": 9, "\u00c7ALI\u015eMA_SAAT": 83.95, "TONAJ": 143590.0, "PLAKA": 19}, {"GUN": 10, "\u00c7ALI\u015eMA_SAAT": 78.42, "TONAJ": 138010.0, "PLAKA": 18}, {"GUN": 11, "\u00c7ALI\u015eMA_SAAT": 42.08, "TONAJ": 88520.0, "PLAKA": 11}, {"GUN": 12, "\u00c7ALI\u015eMA_SAAT": 96.4, "TONAJ": 166900.0, "PLAKA": 18}, {"GUN": 13, "\u00c7ALI\u015eMA_SAAT": 87.58, "TONAJ": 180373.0, "PLAKA": 19}, {"GUN": 14, "\u00c7ALI\u015eMA_SAAT": 80.47, "TONAJ": 134180.0, "PLAKA": 18}, {"GUN": 15, "\u00c7ALI\u015eMA_SAAT": 77.23, "TONAJ": 123580.0, "PLAKA": 19}, {"GUN": 16, "\u00c7ALI\u015eMA_SAAT": 76.4, "TONAJ": 129330.0, "PLAKA": 18}, {"GUN": 17, "\u00c7ALI\u015eMA_SAAT": 79.05, "TONAJ": 145920.0, "PLAKA": 19}, {"GUN": 18, "\u00c7ALI\u015eMA_SAAT": 57.27, "TONAJ": 109070.0, "PLAKA": 12}, {"GUN": 19, "\u00c7ALI\u015eMA_SAAT": 39.42, "TONAJ": 0.0, "PLAKA": 10}, {"GUN": 20, "\u00c7ALI\u015eMA_SAAT": 78.35, "TONAJ": 169570.0, "PLAKA": 20}, {"GUN": 21, "\u00c7ALI\u015eMA_SAAT": 81.87, "TONAJ": 129220.0, "PLAKA": 14}, {"GUN": 22, "\u00c7ALI\u015eMA_SAAT": 70.02, "TONAJ": 125980.0, "PLAKA": 17}, {"GUN": 23, "\u00c7ALI\u015eMA_SAAT": 79.7, "TONAJ": 131460.0, "PLAKA": 19}, {"GUN": 24, "\u00c7ALI\u015eMA_SAAT": 88.02, "TONAJ": 134500.0, "PLAKA": 19}, {"GUN": 25, "\u00c7ALI\u015eMA_SAAT": 41.4, "TONAJ": 73420.0, "PLAKA": 10}, {"GUN": 26, "\u00c7ALI\u015eMA_SAAT": 88.7, "TONAJ": 158900.0, "PLAKA": 18}, {"GUN": 27, "\u00c7ALI\u015eMA_SAAT": 87.7, "TONAJ": 154080.0, "PLAKA": 18}, {"GUN": 28, "\u00c7ALI\u015eMA_SAAT": 73.1, "TONAJ": 136240.0, "PLAKA": 19}, {"GUN": 29, "\u00c7ALI\u015eMA_SAAT": 80.45, "TONAJ": 125840.0, "PLAKA": 19}, {"GUN": 30, "\u00c7ALI\u015eMA_SAAT": 47.82, "TONAJ": 130480.0, "PLAKA": 19}, {"GUN": 31, "\u00c7ALI\u015eMA_SAAT": 89.5, "TONAJ": 147440.0, "PLAKA": 19}];
+
+        // Chart.js defaults
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        Chart.defaults.font.family = 'Inter';
+
+        // Personel Chart
+        const personelCtx = document.getElementById('personelChart').getContext('2d');
+        new Chart(personelCtx, {
+            type: 'bar',
+            data: {
+                labels: personelData.map(p => p.SÜRÜCÜ.split(' ')[0]),
+                datasets: [{
+                    label: 'Performans Skoru',
+                    data: personelData.map(p => p.Performans_Skoru),
+                    backgroundColor: personelData.map((_, i) => {
+                        if (i === 0) return 'rgba(251, 191, 36, 0.8)';
+                        if (i === 1) return 'rgba(148, 163, 184, 0.8)';
+                        if (i === 2) return 'rgba(251, 146, 60, 0.8)';
+                        return 'rgba(59, 130, 246, 0.6)';
+                    }),
+                    borderColor: personelData.map((_, i) => {
+                        if (i === 0) return '#fbbf24';
+                        if (i === 1) return '#94a3b8';
+                        if (i === 2) return '#fb923c';
+                        return '#3b82f6';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const p = personelData[context.dataIndex];
+                                return [
+                                    `Skor: ${p.Performans_Skoru.toFixed(1)}`,
+                                    `Saat: ${p.Toplam_Saat.toFixed(1)}h`,
+                                    `Tonaj: ${(p.Toplam_Tonaj/1000).toFixed(1)}k ton`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Mıntıka Pie Chart
+        const mintikaPieCtx = document.getElementById('mintikaPieChart').getContext('2d');
+        new Chart(mintikaPieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: mintikaData.slice(0, 8).map(m => m.MINTIKA),
+                datasets: [{
+                    data: mintikaData.slice(0, 8).map(m => m.Toplam_Saat),
+                    backgroundColor: [
+                        '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+                        '#ef4444', '#ec4899', '#06b6d4', '#84cc16'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { padding: 20, usePointStyle: true }
+                    }
+                }
+            }
+        });
+
+        // Mıntıka Bar Chart
+        const mintikaBarCtx = document.getElementById('mintikaBarChart').getContext('2d');
+        new Chart(mintikaBarCtx, {
+            type: 'bar',
+            data: {
+                labels: mintikaData.slice(0, 10).map(m => m.MINTIKA.substring(0, 12)),
+                datasets: [
+                    {
+                        label: 'Çalışma Saati',
+                        data: mintikaData.slice(0, 10).map(m => m.Toplam_Saat),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Tonaj (1000)',
+                        data: mintikaData.slice(0, 10).map(m => m.Toplam_Tonaj/1000),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Araç Chart
+        const aracCtx = document.getElementById('aracChart').getContext('2d');
+        new Chart(aracCtx, {
+            type: 'bar',
+            data: {
+                labels: aracData.map(a => a.PLAKA),
+                datasets: [
+                    {
+                        label: 'Çalışma Saati',
+                        data: aracData.map(a => a.Toplam_Saat),
+                        backgroundColor: 'rgba(139, 92, 246, 0.6)',
+                        borderColor: '#8b5cf6',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Toplam KM',
+                        data: aracData.map(a => a.Toplam_KM/10),
+                        backgroundColor: 'rgba(245, 158, 11, 0.3)',
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        type: 'line',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { display: false }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Trend Chart
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: dailyData.map(d => d.GUN + ' Ocak'),
+                datasets: [
+                    {
+                        label: 'Çalışma Saati',
+                        data: dailyData.map(d => d.ÇALIŞMA_SAAT),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Tonaj (1000)',
+                        data: dailyData.map(d => d.TONAJ/1000),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                scales: {
+                    y: { grid: { color: 'rgba(255, 255, 255, 0.05)' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // Tablo doldurma
+        const tableBody = document.getElementById('personelTable');
+        personelData.forEach((p, index) => {
+            const row = document.createElement('tr');
+            let badge = '';
+            if (index === 0) badge = '<span class="badge badge-gold">1. Sırada</span>';
+            else if (index === 1) badge = '<span class="badge badge-silver">2. Sırada</span>';
+            else if (index === 2) badge = '<span class="badge badge-bronze">3. Sırada</span>';
+            else badge = `<span class="badge" style="background: rgba(59,130,246,0.2); color: #60a5fa;">${index + 1}.</span>`;
+
+            row.innerHTML = `
+                <td>${badge}</td>
+                <td><strong>${p.SÜRÜCÜ}</strong></td>
+                <td>${p.Toplam_Saat.toFixed(1)} saat</td>
+                <td>${(p.Toplam_Tonaj/1000).toFixed(1)} ton</td>
+                <td>${p.Toplam_KM.toFixed(0)} km</td>
+                <td>${p.Toplam_Mola_Dk.toFixed(0)} dk</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 600; color: #60a5fa;">${p.Performans_Skoru.toFixed(0)}</span>
+                        <div class="progress-bar" style="width: 100px;">
+                            <div class="progress-fill" style="width: ${p.Performans_Skoru}%"></div>
+                        </div>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        // Tab fonksiyonu
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
